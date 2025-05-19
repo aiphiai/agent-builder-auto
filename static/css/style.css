@@ -1,0 +1,224 @@
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #1E1E2E;
+    color: #F5F5F5;
+}
+
+.container {
+    max-width: 900px;
+    margin: 20px auto;
+    padding: 20px;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+h1 {
+    font-size: 1.8em;
+    margin: 0;
+    color: #26A69A;
+}
+
+.toolbar {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    font-size: 0.9em;
+}
+
+.toolbar a, .toolbar button {
+    color: #26A69A;
+    text-decoration: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.toolbar a:hover, .toolbar button:hover {
+    color: #4A90E2;
+}
+
+#chat-output {
+    max-height: 500px;
+    overflow-y: auto;
+    background: #2A2A3A;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    scrollbar-width: thin;
+    scrollbar-color: #26A69A #2A2A3A;
+}
+
+#chat-output::-webkit-scrollbar {
+    width: 8px;
+}
+
+#chat-output::-webkit-scrollbar-track {
+    background: #2A2A3A;
+}
+
+#chat-output::-webkit-scrollbar-thumb {
+    background: #26A69A;
+    border-radius: 4px;
+}
+
+.user-message, .assistant-message, .tool-message, .error-message {
+    margin: 10px 0;
+    padding: 12px 16px;
+    border-radius: 8px;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.user-message {
+    background: #4A90E2;
+    margin-left: 20%;
+    color: #F5F5F5;
+}
+
+.assistant-message {
+    background: #F5F5F5;
+    margin-right: 20%;
+    color: #1E1E2E;
+}
+
+.tool-message {
+    background: #4B4B5B;
+    margin-right: 20%;
+    font-family: 'Courier New', monospace;
+    color: #F5F5F5;
+}
+
+.error-message {
+    background: #EF5350;
+    color: #F5F5F5;
+}
+
+#chat-form {
+    display: flex;
+    gap: 10px;
+}
+
+#query-input {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid #4B4B5B;
+    border-radius: 8px;
+    background: #2A2A3A;
+    color: #F5F5F5;
+    font-size: 1em;
+}
+
+#query-input:focus {
+    outline: none;
+    border-color: #26A69A;
+}
+
+button {
+    padding: 12px 24px;
+    background: #26A69A;
+    color: #F5F5F5;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background 0.3s;
+}
+
+button:hover {
+    background: #4A90E2;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.settings-form {
+    background: #2A2A3A;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.settings-form h2 {
+    font-size: 1.2em;
+    color: #26A69A;
+    margin-top: 0;
+}
+
+.settings-form label {
+    display: block;
+    margin: 10px 0 5px;
+    color: #F5F5F5;
+    font-size: 0.9em;
+}
+
+.settings-form textarea,
+.settings-form select,
+.settings-form input[type="number"] {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #4B4B5B;
+    border-radius: 8px;
+    background: #2A2A3A;
+    color: #F5F5F5;
+    font-size: 1em;
+}
+
+.settings-form textarea:focus,
+.settings-form select:focus,
+.settings-form input[type="number"]:focus {
+    outline: none;
+    border-color: #26A69A;
+}
+
+.success-message {
+    background: #26A69A;
+    color: #F5F5F5;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
+.login-container {
+    max-width: 400px;
+    margin: 50px auto;
+    background: #2A2A3A;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.login-form label {
+    margin: 10px 0 5px;
+    color: #F5F5F5;
+    font-size: 0.9em;
+}
+
+.login-form input[type="text"],
+.login-form input[type="password"] {
+    padding: 12px;
+    border: 1px solid #4B4B5B;
+    border-radius: 8px;
+    background: #2A2A3A;
+    color: #F5F5F5;
+    font-size: 1em;
+}
+
+.login-form input:focus {
+    outline: none;
+    border-color: #26A69A;
+}

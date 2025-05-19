@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Interface</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI Chat</h1>
+            <div class="toolbar">
+                <span>Tools: {{ tool_count }}</span>
+                <a href="{{ url_for('settings') }}">Settings</a>
+                <form action="{{ url_for('reset') }}" method="POST">
+                    <button type="submit">Reset</button>
+                </form>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            </div>
+        </header>
+        <div id="chat-output">
+            {% for message in history %}
+                <div class="{{ 'user-message' if message.role == 'user' else 'assistant-message' if message.role == 'assistant' else 'tool-message' }}">
+                    {{ message.content | safe }}
+                </div>
+            {% endfor %}
+        </div>
+        <form id="chat-form">
+            <input type="text" id="query-input" name="query" placeholder="Type your message..." required>
+            <button type="submit">Send</button>
+        </form>
+    </div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

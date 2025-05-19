@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>⚙️ Settings</h2>
+
+{% if error %}
+    <p class="error-message">{{ error }}</p>
+{% endif %}
+{% if success %}
+    <p class="success-message">{{ success }}</p>
+{% endif %}
+
+<!-- Add Tool Form -->
+<h3>Add Tool</h3>
+<form method="POST">
+    <label for="tool_name">Tool Name:</label>
+    <input type="text" name="tool_name" class="form-control mb-3" placeholder="e.g., QueryDatabase" required>
+    <label for="github_url">GitHub Repository URL (optional, defaults to tool market):</label>
+    <input type="text" name="github_url" class="form-control mb-3" placeholder="e.g., https://raw.githubusercontent.com/meghanshram/CustomMCPTools/main">
+    <button type="submit" name="add_tool" class="btn btn-primary">Add Tool</button>
+</form>
+
+<!-- Environment Variable Prompt Form (if needed) -->
+{% if env_prompts %}
+    <h3>Environment Variables Required for {{ env_prompts.tool_name }}</h3>
+    <form method="POST">
+        <input type="hidden" name="tool_name" value="{{ env_prompts.tool_name }}">
+        <input type="hidden" name="github_url" value="{{ env_prompts.github_url }}">
+        {% for env_var in env_prompts.env_vars_needed %}
+            <label for="env_{{ env_var.name }}">{{ env_var.description }} ({{ env_var.name }}):</label>
+            <input type="text" name="env_{{ env_var.name }}" class="form-control mb-3" required>
+        {% endfor %}
+        <button type="submit" name="submit_env_vars" class="btn btn-primary">Submit Environment Variables</button>
+    </form>
+{% endif %}
+
+<!-- Display Current Tools -->
+<h3>Current Tools</h3>
+{% if config.tool_config.tools %}
+    <ul>
+        {% for tool in config.tool_config.tools %}
+            <li>
+                {{ tool.name }} ({{ tool.github_url }})
+                <form method="POST" style="display: inline;">
+                    <input type="hidden" name="tool_name" value="{{ tool.name }}">
+                    <button type="submit" name="remove_tool" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to remove {{ tool.name }}?');">Remove</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>No tools installed.</p>
+{% endif %}
+
+<!-- Model Settings Form -->
+<form method="POST">
+    <h3>Model Selection</h3>
+    <select name="model" class="form-control mb-3">
+        {% for model in ['claude-3-7-sonnet-latest', 'gpt-4o'] %}
+            <option value="{{ model }}" {% if model == config.selected_model %}selected{% endif %}>{{ model }}</option>
+        {% endfor %}
+    </select>
+    <h3>Timeouts</h3>
+    <input type="number" name="timeout" class="form-control mb-3" value="{{ session.timeout_seconds }}" min="60" max="300">
+    <h3>Recursion Limit</h3>
+    <input type="number" name="recursion_limit" class="form-control mb-3" value="{{ session.recursion_limit }}" min="10" max="200">
+    <h3>Instructions</h3>
+    <textarea name="instructions" class="form-control mb-3" rows="5" id="instructions" placeholder="Enter custom instructions for the agent (e.g., 'Focus on customer satisfaction')">{{ config.get('instructions', '') }}</textarea>
+    <button type="submit" name="apply_settings" class="btn btn-primary">Apply Settings</button>
+</form>
+{% endblock %}

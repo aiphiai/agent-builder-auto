@@ -1,0 +1,74 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+env/
+venv/
+ENV/
+.venv/
+pyvenv.cfg
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+lib/
+sdist/
+*.egg
+*.whl
+*.tar.gz
+*.zip
+*.rpm
+*.deb
+*.egg-info/
+.installed.cfg
+*.pth
+
+# Virtual environment
+.venv
+venv
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*.swo
+*.pyi
+
+# Editor-specific files and directories
+.idea/
+.vscode/
+*.iml
+*.ipnb_checkpoints/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Python specific ignores
+*.pyc
+*.pyd
+
+# Jupyter Notebook related (optional, but often useful)
+.ipynb_checkpoints/
+
+# MyPy cache
+.mypy_cache/
+
+# Other common folders or files you might want to ignore
+node_modules/
+yarn-error.log
+
+#remove env
+.env
