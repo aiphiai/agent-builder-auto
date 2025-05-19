@@ -12,7 +12,7 @@ mcp = FastMCP(
 )
 
 # Set the Tavily API key
-os.environ["TAVILY_API_KEY"] = "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"
+os.environ["TAVILY_API_KEY"] = "tavily-api-key"
 
 @mcp.tool()
 async def search_internet(query: str, number_of_search_results: Optional[int] = 5) -> str:
