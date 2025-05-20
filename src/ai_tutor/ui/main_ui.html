@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IIT JEE Tutor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/typed.js@2.0.12"></script>
+    <style>
+        .whiteboard {
+            background-color: white;
+            border: 2px solid #333;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            height: 400px;
+            width: 100%;
+            max-width: 800px; /* Ensure max-width */
+            margin-left: auto; /* Center whiteboard */
+            margin-right: auto; /* Center whiteboard */
+            padding: 20px;
+            font-size: 1.25rem;
+            line-height: 1.6;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            color: #333;
+        }
+        .MathJax {
+            display: block !important;
+            font-size: 1.5rem !important;
+            margin: 15px 0 !important;
+            text-align: center !important;
+            color: #333 !important;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 5px 0;
+        }
+        .completed-banner {
+            background-color: #10b981;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        body {
+             font-family: sans-serif;
+        }
+        label {
+            color: #555;
+        }
+        button {
+            cursor: pointer;
+        }
+        textarea, input {
+            border-color: #ccc;
+        }
+        #feedback-response-div p {
+            white-space: pre-wrap;
+        }
+        /* Ensure summary section also handles potential overflows */
+        #explanation-summary .step-content {
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div id="root" class="w-full max-w-4xl"></div>
+
+    <script type="text/babel">
+        function TutorApp() {
+            // --- State Variables ---
+            const [question, setQuestion] = React.useState("");
+            const [context, setContext] = React.useState("IIT JEE preparation");
+            const [subject, setSubject] = React.useState("Physics");
+            const [steps, setSteps] = React.useState([]);
+            const [currentStepIndex, setCurrentStepIndex] = React.useState(-1);
+            const [feedback, setFeedback] = React.useState("");
+            const [feedbackResponse, setFeedbackResponse] = React.useState(null);
+            const [isPlaying, setIsPlaying] = React.useState(false);
+            const [isComplete, setIsComplete] = React.useState(false); // Triggers summary display
+            const [isLoadingFeedback, setIsLoadingFeedback] = React.useState(false);
+            const [isUnderstood, setIsUnderstood] = React.useState(false);
+
+            // --- Refs ---
+            const typedRef = React.useRef(null);
+            const typedInstance = React.useRef(null);
+            const synthesisRef = React.useRef(null);
+            const timerRef = React.useRef(null);
+
+            // --- Helper Functions ---
+            const formatContentForDisplay = (content) => content; // Pass raw LaTeX
+
+            const fetchTutorResponse = async (feedbackContent = null) => {
+                // (Same as previous version - fetches data from backend)
+                 console.log("Fetching response. Feedback:", feedbackContent);
+                try {
+                    const response = await fetch("http://localhost:8001/tutor", { // Ensure this URL is correct
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            question,
+                            context,
+                            subject,
+                            feedback: feedbackContent
+                        })
+                    });
+                    if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                    const data = await response.json();
+                    console.log("Received data:", data);
+                    return data;
+                } catch (e) {
+                    console.error("Fetch error:", e);
+                    return {
+                        explanation_steps: [{ title: "Error", content: `Failed to fetch explanation: ${e.message}. Please check the backend connection and try again.`, narration: "Error occurred." }],
+                        response: `Error communicating with the tutor service: ${e.message}`,
+                        is_understood: false
+                    };
+                }
+            };
+
+            const handleRestartCleanup = () => {
+                // (Same as previous version - stops speech, Typed, timers)
+                 if (window.speechSynthesis && window.speechSynthesis.speaking) {
+                    console.log("Cancelling speech synthesis.");
+                    window.speechSynthesis.cancel();
+                }
+                synthesisRef.current = null;
+                if (typedInstance.current) {
+                    console.log("Destroying Typed instance.");
+                    typedInstance.current.destroy();
+                    typedInstance.current = null;
+                }
+                if (typedRef.current) {
+                    typedRef.current.innerHTML = "";
+                }
+                if (timerRef.current) {
+                    console.log("Clearing timer.");
+                    clearTimeout(timerRef.current);
+                    timerRef.current = null;
+                }
+            };
+
+             // --- Event Handlers ---
+            const handleSubmit = async (e) => {
+                // (Largely same as previous version - initiates the process)
+                e.preventDefault();
+                if (!question.trim()) return;
+                console.log("Submitting question:", question);
+                handleRestartCleanup();
+                const data = await fetchTutorResponse();
+                 if (data && data.explanation_steps && data.explanation_steps.length > 0) {
+                    setSteps(data.explanation_steps);
+                    setCurrentStepIndex(0);
+                    setIsPlaying(true);
+                    setFeedback("");
+                    setFeedbackResponse(null);
+                    setIsComplete(false); // Reset completion status
+                    setIsUnderstood(false);
+                } else {
+                    setSteps([{ title: "Error", content: data.response || "No explanation steps received from tutor.", narration: "Error." }]);
+                    setCurrentStepIndex(0);
+                    setIsPlaying(true);
+                    setIsComplete(false); // Ensure not marked complete on error
+                     console.error("No valid explanation steps received.");
+                }
+            };
+
+            const handleFeedbackSubmit = async () => {
+                // (Same as previous version - handles feedback submission)
+                if (!feedback.trim()) return;
+                console.log("Submitting feedback:", feedback);
+                setIsLoadingFeedback(true);
+                const data = await fetchTutorResponse(feedback);
+                setFeedbackResponse(data.response);
+                setIsUnderstood(data.is_understood || false);
+                setFeedback("");
+                setIsLoadingFeedback(false);
+
+                // Process MathJax for Feedback Response
+                setTimeout(() => {
+                    const feedbackDiv = document.getElementById("feedback-response-div");
+                    if (feedbackDiv && window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+                        console.log("Processing MathJax for feedback response.");
+                        window.MathJax.typesetPromise([feedbackDiv])
+                            .then(() => console.log("MathJax finished for feedback."))
+                            .catch((err) => console.error("MathJax failed for feedback:", err));
+                    } else if (!feedbackDiv) {
+                        console.warn("Feedback response div not found for MathJax processing.");
+                    }
+                }, 100);
+            };
+
+            const handleRestart = () => {
+                // (Same as previous version - resets state)
+                console.log("Restarting process.");
+                handleRestartCleanup();
+                setQuestion("");
+                setSteps([]);
+                setCurrentStepIndex(-1);
+                setFeedback("");
+                setFeedbackResponse(null);
+                setIsPlaying(false);
+                setIsComplete(false);
+                setIsUnderstood(false);
+            };
+
+            // --- Core Effects ---
+
+            // Effect for Step-by-Step Animation and Narration
+            React.useEffect(() => {
+                // (This useEffect remains largely the same as the previous version)
+                // It handles the Typed.js animation, speech synthesis, and
+                // calls MathJax *after each step* completes typing.
+                 if (currentStepIndex >= 0 && currentStepIndex < steps.length && isPlaying) {
+                    console.log(`Starting Step ${currentStepIndex + 1}`);
+                    const step = steps[currentStepIndex];
+                    const title = step.title || "Step " + (currentStepIndex + 1);
+                    const content = step.content || "";
+                    const narration = step.narration || content.replace(/<[^>]*>|\$[^\$]*\$/g, '');
+
+                    handleRestartCleanup(); // Clean up previous step resources
+
+                    if (!typedRef.current) {
+                         console.error("Whiteboard ref (typedRef.current) is null. Cannot initialize Typed.js.");
+                         setIsPlaying(false);
+                         return;
+                     }
+                    typedRef.current.innerHTML = ""; // Clear whiteboard
+                    const displayContent = formatContentForDisplay(content);
+                    const fullText = `**${title}**\n\n${displayContent}`;
+
+                    const typingSpeed = 30;
+                    const speechRate = 0.9;
+                    const pauseBetweenSteps = 1500;
+                    const mathjaxDelay = 100;
+
+                    // Setup Speech
+                    const utterance = new SpeechSynthesisUtterance(narration);
+                    utterance.rate = speechRate;
+                    utterance.onstart = () => console.log(`Speech started for step ${currentStepIndex + 1}`);
+                    utterance.onend = () => console.log(`Speech finished for step ${currentStepIndex + 1}`);
+                    utterance.onerror = (event) => console.error('Speech synthesis error:', event);
+                    synthesisRef.current = utterance;
+
+                    // Initialize Typed.js
+                    try {
+                        typedInstance.current = new Typed(typedRef.current, {
+                            strings: [fullText],
+                            typeSpeed: typingSpeed,
+                            showCursor: false,
+                            onComplete: (self) => {
+                                console.log(`Typed.js complete for step ${currentStepIndex + 1}. Scheduling MathJax.`);
+                                timerRef.current = setTimeout(() => {
+                                    // Process MathJax for the *current step* whiteboard
+                                    if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+                                        console.log("Calling MathJax.typesetPromise on step element:", self.el);
+                                        window.MathJax.typesetPromise([self.el])
+                                            .then(() => console.log(`MathJax typesetting complete for step ${currentStepIndex + 1}`))
+                                            .catch((err) => console.error(`MathJax typesetting failed for step ${currentStepIndex + 1}:`, err));
+                                    } else { console.error("MathJax or typesetPromise function not found."); }
+
+                                    // Schedule next step or completion
+                                    console.log(`Scheduling next step/completion in ${pauseBetweenSteps}ms`);
+                                    timerRef.current = setTimeout(() => {
+                                        if (currentStepIndex < steps.length - 1) {
+                                            setCurrentStepIndex(prev => prev + 1);
+                                        } else {
+                                            console.log("Explanation complete. Setting isComplete=true");
+                                            setIsPlaying(false);
+                                            setIsComplete(true); // **** Mark explanation as complete ****
+                                        }
+                                    }, pauseBetweenSteps);
+                                }, mathjaxDelay);
+                            },
+                            onDestroy: () => console.log(`Typed instance destroyed for step ${currentStepIndex + 1}`)
+                        });
+                    } catch (error) {
+                         console.error("Failed to initialize Typed.js:", error);
+                         setIsPlaying(false);
+                         if(typedRef.current) typedRef.current.innerHTML = `<p style="color: red;">Error displaying explanation step.</p>`;
+                         return;
+                    }
+
+                    // Start Speech
+                    timerRef.current = setTimeout(() => {
+                         if (synthesisRef.current) {
+                            console.log("Speaking narration...");
+                            window.speechSynthesis.speak(synthesisRef.current);
+                         }
+                     }, 300);
+                }
+
+                // Effect Cleanup
+                return () => {
+                    // Don't call full cleanup if just moving between steps normally
+                    // handleRestartCleanup() // Potential optimization: only cleanup if restarting or stopping fully
+                };
+            }, [currentStepIndex, isPlaying, steps]);
+
+            // *** NEW Effect: Process MathJax for the Summary Section ***
+            React.useEffect(() => {
+                if (isComplete) {
+                    // Give React time to render the summary section first
+                    setTimeout(() => {
+                        const summaryDiv = document.getElementById("explanation-summary");
+                        if (summaryDiv && window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+                            console.log("Processing MathJax for explanation summary section.");
+                            window.MathJax.typesetPromise([summaryDiv])
+                                .then(() => console.log("MathJax finished processing summary."))
+                                .catch((err) => console.error("MathJax failed processing summary:", err));
+                        } else if (summaryDiv) {
+                             console.warn("MathJax not ready or summary div not found when trying to process summary.");
+                        }
+                    }, 200); // Slightly longer delay might be needed for larger summaries
+                }
+            }, [isComplete, steps]); // Rerun when isComplete changes or steps data changes (though steps shouldn't change after completion)
+
+
+            // --- Render Logic ---
+            return (
+                <div className="bg-white p-6 rounded-lg shadow-lg max-w-4xl mx-auto">
+                    <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">IIT JEE Physics Tutor</h1>
+
+                    {/* --- Initial Form --- */}
+                    {!steps.length && !isComplete && ( // Hide form if steps started or completed
+                        <div className="mb-6">
+                            {/* (Form JSX remains the same as previous version) */}
+                             <form onSubmit={handleSubmit}>
+                                <div className="mb-4">
+                                    <label htmlFor="question" className="block text-sm font-medium mb-1 text-gray-700">Question</label>
+                                    <textarea id="question" className="w-full p-3 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" rows="4" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="e.g., Explain projectile motion and derive the formula for maximum height." required></textarea>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                         <label htmlFor="context" className="block text-sm font-medium mb-1 text-gray-700">Context</label>
+                                         <input id="context" type="text" className="w-full p-3 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" value={context} onChange={(e) => setContext(e.target.value)} placeholder="e.g., IIT JEE preparation" />
+                                    </div>
+                                     <div>
+                                         <label htmlFor="subject" className="block text-sm font-medium mb-1 text-gray-700">Subject</label>
+                                         <input id="subject" type="text" className="w-full p-3 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g., Physics" />
+                                    </div>
+                                </div>
+                                <button type="submit" className="w-full bg-blue-600 text-white px-4 py-3 rounded-md font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out"> Get Explanation </button>
+                            </form>
+                        </div>
+                    )}
+
+                    {/* --- Step-by-Step Explanation Area --- */}
+                    {steps.length > 0 && !isComplete && ( // Show whiteboard only during active explanation
+                        <>
+                            <div className="mb-4 text-center">
+                                <p className="text-lg font-medium text-gray-600">Step {currentStepIndex + 1} of {steps.length}</p>
+                            </div>
+                            {/* Whiteboard Area */}
+                            <div className="whiteboard mb-6" ref={typedRef}>
+                                {/* Content dynamically inserted by Typed.js */}
+                            </div>
+                            {/* Control Buttons */}
+                            <div className="flex flex-wrap gap-3 justify-center mb-6">
+                                {/* Play/Pause */}
+                                 <button className={`px-5 py-2 rounded-md font-medium text-white transition duration-150 ease-in-out ${isPlaying ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-blue-500 hover:bg-blue-600'}`} onClick={() => { if (isPlaying) { window.speechSynthesis.pause(); if(typedInstance.current) typedInstance.current.pause(); if(timerRef.current) clearTimeout(timerRef.current); setIsPlaying(false); console.log("Paused."); } else { if (window.speechSynthesis.paused) window.speechSynthesis.resume(); if(typedInstance.current) typedInstance.current.unpause(); setIsPlaying(true); console.log("Resumed."); } }} > {isPlaying ? "Pause" : "Resume"} </button>
+                                 {/* Next Step */}
+                                  <button className="bg-green-500 text-white px-5 py-2 rounded-md font-medium hover:bg-green-600 transition duration-150 ease-in-out" onClick={() => { console.log("Next Step button clicked."); handleRestartCleanup(); if (currentStepIndex < steps.length - 1) { setCurrentStepIndex(prev => prev + 1); setIsPlaying(true); } else { setIsComplete(true); setIsPlaying(false); } }} > Next Step </button>
+                                {/* Start Over */}
+                                <button className="bg-red-500 text-white px-5 py-2 rounded-md font-medium hover:bg-red-600 transition duration-150 ease-in-out" onClick={handleRestart} > Start Over </button>
+                            </div>
+                        </>
+                    )}
+
+                    {/* --- Completion Banner & Feedback Section --- */}
+                    {isComplete && (
+                        <>
+                            <div className="completed-banner">Explanation Complete!</div>
+
+                            {/* Feedback Area (show if complete but not understood) */}
+                            {!isUnderstood && (
+                                <div className="mt-6 border-t pt-6">
+                                    {/* (Feedback JSX same as previous version) */}
+                                    <h2 className="text-xl font-semibold mb-3 text-gray-700">Need further clarification?</h2>
+                                    <textarea className="w-full p-3 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 mb-3" rows="4" placeholder="Enter your feedback or questions here..." value={feedback} onChange={(e) => setFeedback(e.target.value)} ></textarea>
+                                    <button className="w-full bg-purple-600 text-white px-4 py-3 rounded-md font-semibold hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition duration-150 ease-in-out disabled:opacity-50" onClick={handleFeedbackSubmit} disabled={isLoadingFeedback || !feedback.trim()} > {isLoadingFeedback ? "Processing..." : "Submit Feedback"} </button>
+                                </div>
+                            )}
+
+                            {/* Tutor Feedback Response Area */}
+                            {feedbackResponse && (
+                                <div className="mt-6 border-t pt-6">
+                                    {/* (Feedback Response JSX same as previous version, includes #feedback-response-div) */}
+                                     <h2 className="text-xl font-semibold mb-2 text-gray-700">Tutor Response:</h2>
+                                    <div id="feedback-response-div" className="p-4 bg-gray-100 rounded-md shadow-inner">
+                                        <p className="text-gray-800">{feedbackResponse}</p>
+                                        {isUnderstood && ( <div className="mt-4 p-3 bg-green-100 text-green-800 rounded-md border border-green-200"> Great! It looks like that cleared things up. Feel free to ask another question. </div> )}
+                                    </div>
+                                </div>
+                            )}
+
+                             {/* --- NEW: Explanation Summary Section --- */}
+                            <div id="explanation-summary" className="mt-8 border-t pt-6">
+                                <h2 className="text-2xl font-bold mb-4 text-center text-gray-800">Complete Explanation Summary</h2>
+                                {steps.map((step, index) => (
+                                    <div key={`summary-${index}`} className="mb-6 p-4 bg-gray-50 rounded-lg shadow">
+                                        <h3 className="text-xl font-semibold mb-2 text-gray-700">{step.title || `Step ${index + 1}`}</h3>
+                                        {/* Use Tailwind Typography for nice formatting if installed, otherwise basic div */}
+                                        {/* Render content directly. MathJax will process this div. */}
+                                        <div className="prose prose-lg max-w-none step-content">{step.content}</div>
+                                    </div>
+                                ))}
+                            </div>
+
+                             {/* Ask Another Question Button (show if understood or after first feedback response when complete) */}
+                             {(isUnderstood || feedbackResponse) && (
+                                 <div className="mt-6 text-center border-t pt-6">
+                                     <button className="bg-blue-600 text-white px-6 py-3 rounded-md font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out" onClick={handleRestart} > Ask Another Question </button>
+                                 </div>
+                             )}
+
+                        </>
+                    )}
+
+
+                </div> // End of main container div
+            );
+        }
+
+        // Mount the React app
+        const container = document.getElementById("root");
+        const root = ReactDOM.createRoot(container);
+        root.render(<TutorApp />);
+    </script>
+</body>
+</html>

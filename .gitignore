@@ -1,0 +1,49 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+eggs/
+lib64/
+lib/
+sdist/
+setup.py
+pyproject.toml
+PKG-INFO
+*.egg-info/
+.installed.cfg
+*.whl
+venv/
+env/
+.venv/
+Envs/
+
+# Installer logs
+*.log
+
+# Unit test / coverage reports
+.tox/
+.coverage
+.coverage.*
+nosetests.xml
+coverage.xml
+*.egg
+
+# Jupyter Notebook related files
+.ipynb_checkpoints/
+
+# Environments
+.env
+.venv
+
+# System files
+.DS_Store
+Thumbs.db

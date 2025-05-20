@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IIT JEE Tutor</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax for LaTeX rendering -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- React and dependencies via CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Typed.js for animated typing -->
+    <script src="https://cdn.jsdelivr.net/npm/typed.js@2.0.12"></script>
+    <style>
+        .whiteboard {
+            background-color: white;
+            border: 2px solid #333;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            height: 400px;
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+            font-size: 1.25rem;
+            line-height: 1.5;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .MathJax {
+            display: block !important;
+            font-size: 1.5rem;
+            margin: 10px 0;
+            text-align: center;
+        }
+        .completed-banner {
+            background-color: #10b981;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+    <div id="root" class="w-full max-w-4xl p-4"></div>
+
+    <script type="text/babel">
+        function TutorApp() {
+            const [question, setQuestion] = React.useState("");
+            const [context, setContext] = React.useState("IIT JEE preparation");
+            const [subject, setSubject] = React.useState("Physics");
+            const [steps, setSteps] = React.useState([]);
+            const [currentStepIndex, setCurrentStepIndex] = React.useState(-1);
+            const [feedback, setFeedback] = React.useState("");
+            const [feedbackResponse, setFeedbackResponse] = React.useState(null);
+            const [isPlaying, setIsPlaying] = React.useState(false);
+            const typedRef = React.useRef(null);
+
+            // Fetch tutor response
+            const fetchTutorResponse = async (feedback = null) => {
+                try {
+                    const response = await fetch("http://localhost:8001/tutor", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            question,
+                            context,
+                            subject,
+                            feedback
+                        })
+                    });
+                    if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                    return await response.json();
+                } catch (e) {
+                    console.error("Fetch error:", e);
+                    return {
+                        explanation_steps: [{ title: "Error", content: "Failed to fetch explanation. Please try again.", narration: "Error occurred." }],
+                        response: null,
+                        is_understood: false
+                    };
+                }
+            };
+
+            // Handle form submission
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                if (!question.trim()) return;
+                const data = await fetchTutorResponse();
+                setSteps(data.explanation_steps);
+                setCurrentStepIndex(0);
+                setIsPlaying(true);
+                setFeedback("");
+                setFeedbackResponse(null);
+            };
+
+            // Handle feedback submission
+            const handleFeedbackSubmit = async () => {
+                if (!feedback.trim()) return;
+                const data = await fetchTutorResponse(feedback);
+                setFeedbackResponse(data.response);
+                setFeedback("");
+                if (data.is_understood) {
+                    setIsPlaying(false);
+                }
+                window.MathJax.typesetPromise();
+            };
+
+            // Sync audio and text
+            React.useEffect(() => {
+                if (currentStepIndex >= 0 && currentStepIndex < steps.length && isPlaying) {
+                    const step = steps[currentStepIndex];
+                    const content = step.content;
+                    const title = step.title;
+                    const narration = step.narration || content;
+                    const fullText = `${title}\n\n${content}`;
+                    const words = narration.split(/\s+/).length;
+                    const audioDuration = (words / 160) * 60 * 1000; // ms, ~160 wpm
+                    const typeSpeed = Math.max(10, Math.floor(audioDuration / words)); // ms per word
+
+                    // Clear previous content
+                    if (typedRef.current) {
+                        typedRef.current.innerHTML = "";
+                    }
+
+                    // Split content into words for Typed.js
+                    const wordArray = fullText.split(/\s+/).map((word, i) => ({
+                        text: word + (i < fullText.length - 1 ? " " : ""),
+                        delay: word.match(/[.!?]$/) ? 500 : 0
+                    }));
+
+                    // Initialize Typed.js
+                    const typed = new Typed(typedRef.current, {
+                        strings: [fullText],
+                        typeSpeed,
+                        showCursor: false,
+                        onComplete: () => {
+                            window.MathJax.typesetPromise().then(() => {
+                                setTimeout(() => {
+                                    if (currentStepIndex < steps.length - 1) {
+                                        setCurrentStepIndex(currentStepIndex + 1);
+                                    } else {
+                                        setIsPlaying(false);
+                                    }
+                                }, 1000);
+                            });
+                        }
+                    });
+
+                    // Play audio with word boundary sync
+                    const utterance = new SpeechSynthesisUtterance(narration);
+                    utterance.rate = 1.0;
+                    let wordIndex = 0;
+                    utterance.onboundary = (event) => {
+                        if (event.name === "word" && wordIndex < wordArray.length) {
+                            wordIndex++;
+                        }
+                    };
+                    utterance.onend = () => {
+                        if (typed.strPos < fullText.length) {
+                            typed.typeSpeed = 0;
+                            typed.finish();
+                        }
+                    };
+                    window.speechSynthesis.speak(utterance);
+
+                    return () => {
+                        window.speechSynthesis.cancel();
+                        typed.destroy();
+                    };
+                }
+            }, [currentStepIndex, isPlaying, steps]);
+
+            return (
+                <div className="bg-white p-6 rounded-lg shadow-lg">
+                    <h1 className="text-2xl font-bold text-center mb-4">IIT JEE Physics Tutor</h1>
+                    {!steps.length && (
+                        <div className="mb-6">
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium mb-1">Question</label>
+                                <textarea
+                                    className="w-full p-2 border rounded"
+                                    rows="3"
+                                    value={question}
+                                    onChange={(e) => setQuestion(e.target.value)}
+                                    placeholder="e.g., What is the formula for kinetic energy and how do we derive it?"
+                                ></textarea>
+                            </div>
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium mb-1">Context</label>
+                                <input
+                                    className="w-full p-2 border rounded"
+                                    value={context}
+                                    onChange={(e) => setContext(e.target.value)}
+                                    placeholder="e.g., IIT JEE preparation"
+                                />
+                            </div>
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium mb-1">Subject</label>
+                                <input
+                                    className="w-full p-2 border rounded"
+                                    value={subject}
+                                    onChange={(e) => setSubject(e.target.value)}
+                                    placeholder="e.g., Physics"
+                                />
+                            </div>
+                            <button
+                                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                                onClick={handleSubmit}
+                            >
+                                Get Explanation
+                            </button>
+                        </div>
+                    )}
+                    {steps.length > 0 && (
+                        <>
+                            <div className="mb-4 text-center">
+                                {currentStepIndex < steps.length ? (
+                                    <p className="text-lg">Step {currentStepIndex + 1} of {steps.length}</p>
+                                ) : (
+                                    <p className="completed-banner">Explanation Complete!</p>
+                                )}
+                            </div>
+                            <div className="whiteboard mb-6" ref={typedRef}></div>
+                            {currentStepIndex < steps.length && (
+                                <button
+                                    className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mb-4"
+                                    onClick={() => {
+                                        if (currentStepIndex < steps.length - 1) {
+                                            setCurrentStepIndex(currentStepIndex + 1);
+                                            setIsPlaying(true);
+                                        }
+                                    }}
+                                >
+                                    Next Step
+                                </button>
+                            )}
+                            {currentStepIndex >= steps.length && (
+                                <div className="mt-4">
+                                    <textarea
+                                        className="w-full p-2 border rounded mb-2"
+                                        rows="4"
+                                        placeholder="Enter your feedback..."
+                                        value={feedback}
+                                        onChange={(e) => setFeedback(e.target.value)}
+                                    ></textarea>
+                                    <button
+                                        className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                                        onClick={handleFeedbackSubmit}
+                                    >
+                                        Submit Feedback
+                                    </button>
+                                </div>
+                            )}
+                            {feedbackResponse && (
+                                <div className="mt-4 p-4 bg-gray-100 rounded">
+                                    <h2 className="text-lg font-semibold">Tutor Response:</h2>
+                                    <p>{feedbackResponse}</p>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById("root"));
+        root.render(<TutorApp />);
+    </script>
+</body>
+</html>
