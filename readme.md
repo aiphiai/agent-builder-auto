@@ -404,4 +404,3 @@ This will open the application in your web browser.
   * **Typewriter effect not working:** Inspect browser console for JavaScript errors. Ensure MathJax scripts are correctly loaded and `escaped_text` is properly formatted.
   * **Temporary audio files not deleting:** There's a cleanup loop at the end of `main.py` and a "Clear" button that attempts to delete files. If issues persist, check OS permissions on the temporary directory.
 
-This comprehensive documentation should serve as a solid foundation for any developer working with or extending the IIT JEE Tutor application.
