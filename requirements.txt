@@ -1,0 +1,6 @@
+mcp
+langchain
+langchain-openai
+langchain-community
+psycopg2-binary
+sqlalchemy
